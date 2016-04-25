@@ -17,18 +17,18 @@ class Particle
     accel[0] = accel[1] = accel[2] = 0;
     pAccel[0] = pAccel[1] = pAccel[2] = 0;
     temp = 100;
-    mass = 5;
-    density = 100;
-    pressure = 1;
+    mass = 1;
+    density = 4;
+    pressure = 10;
   }
   
   void draw()
   {    
     pushMatrix();
     translate(pos[0],pos[1],pos[2]);
-    fill(0);
-    //fill(0,0,temp);
-    sphere(25);
+    //fill(0);
+    fill(0,0,temp);
+    sphere(35);
     popMatrix();
   }
   

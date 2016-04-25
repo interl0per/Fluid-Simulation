@@ -8,7 +8,7 @@
 
 import java.util.*;
 
-final int RESOLUTION = 5;
+final int RESOLUTION = 8;
 final float e = 2.71828182845; 
 PShape bdy;
 float mx, my;
@@ -20,15 +20,16 @@ void setup()
   background(0);
   size(1024,768, P3D);
  // Random rand = new Random();
-  bdy = loadShape("bdy.obj");
+  bdy = loadShape("bdy2.obj");
   bdy.setFill(color(255,255,250));
+  Random rand = new Random();
   for(int i= 0; i < RESOLUTION; i++)
   {
    for(int j = 0; j < RESOLUTION; j++)
    {
      for(int k =0; k < RESOLUTION; k++)
      {
-        test.scene.add(new Particle(i*60,j*60-500, k*60 - 400));
+        test.scene.add(new Particle(i*50 + rand.nextFloat()*1,j*50-100 + rand.nextFloat()*1, k*50 - 550 + rand.nextFloat()*1));
      }
     }
   }
@@ -48,7 +49,7 @@ void draw()
   rotateX(-ty);
   rotateY(tx);
   lights();
-   shape(bdy,0,0);
+ //  shape(bdy,0,0);
   float dmx = mouseX - mx, dmy = mouseY - my;
   
   //bdy.rotateX(dmy/100);
@@ -98,7 +99,7 @@ void draw()
   {
     test.simulate();
  }
- // test.rotate(dmx,dmy,0);
+  //test.rotate(dmx,dmy,0);
   test.draw();
 
   //saveFrame("drop6-######.jpg");
@@ -106,40 +107,30 @@ void draw()
 
 }
 
-float ker(float[] r, float h) // f : R^3 -> R
+float poly6(PVector r, float h) // f : R^3 -> R
 {
-  float x = -4*(r[0]*r[0] + r[1]*r[1] + r[2]*r[2])/(h*h);
-  return pow(e,x);
-}
-
-float wpoly6(float[] r, float h) // f : R^3 -> R
-{
-  float d2 = r[0]*r[0] + r[1]*r[1] + r[2]*r[2];
-  if(d2 > h)
+  float d2 = r.x*r.x + r.y*r.y+ r.z*r.z;
+  
+//  println(r.x, r.y, r.z);
+  
+  if(sqrt(d2) > h)
     return 0;
   else
-    return 315*(h*h - d2)*(h*h - d2)*(h*h - d2)/(64*PI*pow(h,2));
+    return pow(h*h-d2,3)*315/(64*PI*pow(h,9));
 }
 
-float[] kerg(float[] r, float h) // f : R^3 -> R^3
+float[] spiky(PVector r, float h) // f : R^3 -> R^3
 {
-  float x = -4*(r[0]*r[0] + r[1]*r[1] + r[2]*r[2])/(h*h);
+  float d = sqrt(r.x*r.x + r.y*r.y + r.z*r.z);
+  float mul = 0;
+  //println(d);
   
-  float[] grad = {-8*r[0]*pow(e,x)/(h*h),
-                  -8*r[1]*pow(e,x)/(h*h),
-                  -8*r[2]*pow(e,x)/(h*h)};
-    
-  return grad;
-}
-float[] spiky(float[] r, float h) // f : R^3 -> R^3
-{
-  float x = sqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);
-  float denom = PI*x;
+  if(d < h)
+    mul = -45*(h-d)*(h-d)/(PI*pow(h,6));
   
-  float[] grad = {-15*r[0]/denom,
-                  -15*r[1]/denom,
-                  -15*r[2]/denom};
-             
+  float[] grad = {mul*r.x,
+                  mul*r.y,
+                  mul*r.z};      
   return grad;
 }
 

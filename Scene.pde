@@ -2,12 +2,13 @@ class Scene
 {
   ArrayList<Particle> scene = new ArrayList<Particle>();
   
-  final float g = 100;
-  final float DAMP = 0.7;
-  final float TSTEP = 0.1;
-  final float h = 600;
-  final float SPRING = 500000;
+  final float g = 15;
+  final float DAMP = 1;
+  final float TSTEP = 0.05;
+  final float h = 0.2;
+  final float SPRING = 10;
   final float VISC = 500;
+  final float PDAMP = 5;
   
   void simulate()
   {
@@ -21,18 +22,23 @@ class Scene
 
       for(Particle q : scene)
       {
-        float[] pd = {p.pos[0] - q.pos[0], 
-                      p.pos[1] - q.pos[1], 
-                      p.pos[2] - q.pos[2]};
+        PVector ppn = new PVector(p.pos[0], p.pos[1], p.pos[2]);
+        PVector qpn = new PVector(q.pos[0], q.pos[1], q.pos[2]);
+
+        ppn.mult(0.0033);
+        qpn.mult(0.0033);
+        
+        PVector pd = ppn.sub(qpn);
                       
-        dNew += q.mass*wpoly6(pd, h);
+        dNew += q.mass*poly6(pd, h);
+        
       }
       //calculate pressure from new density
       p.pressure = SPRING*(dNew - p.density);
+
       p.density  = dNew;
       
-  //    p.temp = p.density/5;
-      //p.temp = p.pressure/1000;
+      p.temp = p.density/10;
       //add gravitational force
       p.accel[1] += p.density*g;
     }
@@ -47,32 +53,32 @@ class Scene
       
       for(Particle q : scene)
       {
-        float[] pd = {p.pos[0] - q.pos[0], 
-                      p.pos[1] - q.pos[1], 
-                      p.pos[2] - q.pos[2]};
-                      
-        float[] grad = kerg(pd, h);
-        pf[0] -= q.mass*(p.pressure + q.pressure)/(2*q.density)*grad[0];
-        pf[1] -= q.mass*(p.pressure + q.pressure)/(2*q.density)*grad[1];
-        pf[2] -= q.mass*(p.pressure + q.pressure)/(2*q.density)*grad[2];
+        PVector ppn = new PVector(p.pos[0], p.pos[1], p.pos[2]);
+        PVector qpn = new PVector(q.pos[0], q.pos[1], q.pos[2]);
+
+        ppn.mult(0.0033);
+        qpn.mult(0.0033);
         
-        float lap = laplace(pd, h);
-        vf[0] += lap * q.mass*(q.vel[0] - p.vel[0])/q.density;
-        vf[1] += lap * q.mass*(q.vel[1] - p.vel[1])/q.density;
-        vf[2] += lap * q.mass*(q.vel[2] - p.vel[2])/q.density;
+        PVector pd = ppn.sub(qpn);
+        
+        float[] grad = spiky(pd, h);
+        pf[0] -= q.mass*(p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[0];
+        pf[1] -= q.mass*(p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[1];
+        pf[2] -= q.mass*(p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[2];
+        
       }
       vf[0] *= VISC;
       vf[1] *= VISC;
       vf[2] *= VISC;
       
-      p.accel[0] += pf[0] + vf[0];
-      p.accel[1] += pf[1] + vf[1];
-      p.accel[2] += pf[2] + vf[2];
+      p.accel[0] += pf[0] + vf[0] - p.vel[0]*PDAMP;
+      p.accel[1] += pf[1] + vf[1] - p.vel[1]*PDAMP;
+      p.accel[2] += pf[2] + vf[2] - p.vel[2]*PDAMP;
     }  
     
     for(Particle p : scene)
     {
-      p.temp = 140;
+      //p.temp = 140;
       //calculate final accelerations
       p.accel[0] /= p.density;
       p.accel[1] /= p.density;
@@ -146,10 +152,11 @@ class Scene
     }
   }
 }
+
 //http://realtimecollisiondetection.net/blog/?p=103
 boolean tri_sphere_ix(PVector a, PVector b, PVector c, PVector p)
 {
-  float r = 25;
+  float r = 35;
 
   a.sub(p);
   b.sub(p);
