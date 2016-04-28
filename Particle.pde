@@ -4,7 +4,7 @@ class Particle
   float vel[] = new float[3];
   float accel[] = new float[3];
   float pAccel[] = new float[3];
-
+  float pf[] = new float[3];
   float mass, density, pressure;
   float temp;
   
@@ -26,9 +26,8 @@ class Particle
   {    
     pushMatrix();
     translate(pos[0],pos[1],pos[2]);
-    //fill(0);
     fill(0,0,temp);
-    sphere(35);
+    sphere(30);
     popMatrix();
   }
   

@@ -2,83 +2,83 @@ class Scene
 {
   ArrayList<Particle> scene = new ArrayList<Particle>();
   
-  final float g = 15;
-  final float DAMP = 1;
-  final float TSTEP = 0.05;
-  final float h = 0.2;
-  final float SPRING = 10;
-  final float VISC = 500;
-  final float PDAMP = 5;
+  final float g = 50;
+  final float TSTEP = 0.05;  
+  final float h = 0.25;     
+  final float SPRING = 20;
+  final float VISC = 500;      
+  final float PDAMP = 37; 
+  float PREST = 125;//125
   
   void simulate()
   {
+    //compute densities
+    for(int i= 0; i < scene.size(); i++)
+    {
+       Particle p = scene.get(i);
+       for(int j= i; j < scene.size(); j++)
+       {
+          Particle q = scene.get(j);
+          PVector ppn = new PVector(p.pos[0], p.pos[1], p.pos[2]);
+          PVector qpn = new PVector(q.pos[0], q.pos[1], q.pos[2]);
+    
+          ppn.mult(0.0033);
+          qpn.mult(0.0033);
+            
+          PVector pd = ppn.sub(qpn);
+          float ker = poly6(pd, h);
+          p.density += q.mass*ker;
+          if(i != j)
+            q.density += p.mass*ker;
+       }
+    }
+    
     for(Particle p : scene)
     {
-      //initialize accelerations
-      p.accel[0] = p.accel[1] = p.accel[2] = 0;
-
-      //calculate density
-      float dNew = 0;
-
-      for(Particle q : scene)
-      {
-        PVector ppn = new PVector(p.pos[0], p.pos[1], p.pos[2]);
-        PVector qpn = new PVector(q.pos[0], q.pos[1], q.pos[2]);
-
-        ppn.mult(0.0033);
-        qpn.mult(0.0033);
-        
-        PVector pd = ppn.sub(qpn);
-                      
-        dNew += q.mass*poly6(pd, h);
-        
-      }
       //calculate pressure from new density
-      p.pressure = SPRING*(dNew - p.density);
-
-      p.density  = dNew;
-      
-      p.temp = p.density/10;
+      p.pressure = SPRING*(p.density - PREST);
+      p.temp = p.density;
       //add gravitational force
       p.accel[1] += p.density*g;
     }
     
-    //compute pressure forces, viscous forces
+    //compute pressure gradients
+    for(int i= 0; i < scene.size(); i++)
+    {
+       Particle p = scene.get(i);
+       for(int j= i; j < scene.size(); j++)
+       {
+          Particle q = scene.get(j);
+          PVector ppn = new PVector(p.pos[0], p.pos[1], p.pos[2]);
+          PVector qpn = new PVector(q.pos[0], q.pos[1], q.pos[2]);
+    
+          ppn.mult(0.0033);
+          qpn.mult(0.0033);
+            
+          PVector pd = ppn.sub(qpn);
+          float[] grad = spiky(pd, h);
+          float t1 = (p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[0];
+          float t2 = (p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[1];
+          float t3 = (p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[2];
+          
+          p.pf[0] -= q.mass*t1;
+          p.pf[1] -= q.mass*t2;
+          p.pf[2] -= q.mass*t3;
+          if(i != j)
+          {
+            q.pf[0] += q.mass*t1;
+            q.pf[1] += q.mass*t2;
+            q.pf[2] += q.mass*t3;
+          }
+       }
+    }
     
     for(Particle p : scene)
     {
-      float[] pf = {0,0,0};
-      float[] vf = {0,0,0};
-      float[] rf = {0,0,0};
-      
-      for(Particle q : scene)
-      {
-        PVector ppn = new PVector(p.pos[0], p.pos[1], p.pos[2]);
-        PVector qpn = new PVector(q.pos[0], q.pos[1], q.pos[2]);
-
-        ppn.mult(0.0033);
-        qpn.mult(0.0033);
-        
-        PVector pd = ppn.sub(qpn);
-        
-        float[] grad = spiky(pd, h);
-        pf[0] -= q.mass*(p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[0];
-        pf[1] -= q.mass*(p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[1];
-        pf[2] -= q.mass*(p.pressure*p.pressure/(p.density*p.density) + q.pressure*q.pressure/(q.density*q.density))*grad[2];
-        
-      }
-      vf[0] *= VISC;
-      vf[1] *= VISC;
-      vf[2] *= VISC;
-      
-      p.accel[0] += pf[0] + vf[0] - p.vel[0]*PDAMP;
-      p.accel[1] += pf[1] + vf[1] - p.vel[1]*PDAMP;
-      p.accel[2] += pf[2] + vf[2] - p.vel[2]*PDAMP;
-    }  
-    
-    for(Particle p : scene)
-    {
-      //p.temp = 140;
+      //final acceleration, almost..
+      p.accel[0] += p.pf[0] - p.vel[0]*PDAMP;
+      p.accel[1] += p.pf[1] - p.vel[1]*PDAMP;
+      p.accel[2] += p.pf[2] - p.vel[2]*PDAMP;
       //calculate final accelerations
       p.accel[0] /= p.density;
       p.accel[1] /= p.density;
@@ -91,8 +91,8 @@ class Scene
       p.vel[0] += TSTEP*(p.accel[0] + p.pAccel[0])/2;
       p.vel[1] += TSTEP*(p.accel[1] + p.pAccel[1])/2;
       p.vel[2] += TSTEP*(p.accel[2] + p.pAccel[2])/2;
-      //apply boundary forces
       
+      //apply boundary forces, collisions
       for(int i =0; i < bdy.getChildCount(); i++)
       {
          PVector a = bdy.getChild(i).getVertex(0),
@@ -108,6 +108,7 @@ class Scene
             float pt2pln = ppv.sub(a).dot(norm);//distance to the plane through a,b,c
             PVector testDir = a.add(norm);
             float testMag = testDir.sub(a).dot(norm);
+            
             if(!((pt2pln > 0 && testMag > 0) || (testMag < 0 && pt2pln < 0)))
             {//normal points in opposite direction of P
               norm.mult(-1);
@@ -122,15 +123,16 @@ class Scene
             p.pos[0] += p.vel[0]*TSTEP;
             p.pos[1] += p.vel[1]*TSTEP;
             p.pos[2] += p.vel[2]*TSTEP;
-  
-            p.vel[0] *= DAMP;
-            p.vel[1] *= DAMP;
-            p.vel[2] *= DAMP;
          }
-      } 
+      }
+      //store last accel
       p.pAccel[0] = p.accel[0];
       p.pAccel[1] = p.accel[1];
       p.pAccel[2] = p.accel[2];
+      //reset accelerations and densities
+      p.accel[0] = p.accel[1] = p.accel[2] = 0;
+      p.density = 0;
+      p.pf[0] = p.pf[1] = p.pf[2] = 0;
     }      
   }
   
@@ -143,7 +145,6 @@ class Scene
       p.rotateZ(-zr/100);
     }
   }
-  
   void draw()
   {
     for(Particle p : scene)
